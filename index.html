@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Rentabilidad Inmobiliaria</title>
+<style>
+:root{
+  --bg:#0f172a;--panel:#111827;--panel2:#172033;--text:#e5e7eb;--muted:#94a3b8;
+  --line:#273244;--accent:#38bdf8;--red:#ef4444;--orange:#f97316;--yellow:#eab308;--green:#22c55e;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#0b1220,#111827);color:var(--text)}
+.wrap{max-width:1400px;margin:auto;padding:28px}
+h1{font-size:clamp(28px,4vw,46px);margin:0 0 8px}
+h2{margin-top:0}
+.lead{color:var(--muted);max-width:900px;line-height:1.6}
+.grid{display:grid;grid-template-columns:370px 1fr;gap:22px;margin-top:24px}
+.card{background:rgba(17,24,39,.94);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 14px 36px rgba(0,0,0,.18)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.controls .full{grid-column:1/-1}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:var(--text);font-size:15px}
+input:focus{outline:2px solid rgba(56,189,248,.35);border-color:var(--accent)}
+.mini{font-size:12px;color:#64748b;margin-top:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-size:23px;font-weight:700;margin-top:4px}
+.table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;min-width:820px;background:#0f172a}
+th,td{padding:13px 14px;border-bottom:1px solid var(--line);text-align:right}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:#111827;position:sticky;top:0}
+th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.b-red{background:rgba(239,68,68,.13);color:#fecaca}
+.b-orange{background:rgba(249,115,22,.13);color:#fed7aa}
+.b-yellow{background:rgba(234,179,8,.13);color:#fef08a}
+.b-green{background:rgba(34,197,94,.13);color:#bbf7d0}
+.b-white{background:rgba(226,232,240,.10);color:#e2e8f0}
+.formula{line-height:1.7;color:#cbd5e1}
+.formula code{background:#0f172a;border:1px solid var(--line);padding:2px 7px;border-radius:7px;color:#bae6fd}
+.note{background:#0f172a;border-left:4px solid var(--accent);padding:14px 16px;border-radius:10px;color:#cbd5e1;line-height:1.6}
+.section{margin-top:22px}
+.footer{color:#64748b;font-size:12px;line-height:1.5;margin:24px 0 4px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.wrap{padding:16px}.controls,.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calculadora de rentabilidad inmobiliaria</h1>
+  <p class="lead">
+    Simula la compra, financiación, mantenimiento y venta de una vivienda. Modifica los datos y la tabla se recalculará automáticamente,
+    mostrando tanto el resultado nominal como el resultado real descontando la inflación.
+  </p>
+
+  <div class="grid">
+    <aside class="card">
+      <h2>Datos del ejercicio</h2>
+      <div class="controls">
+        <div><label>Precio de compra (€)</label><input id="price" type="number" value="200000" step="1000"></div>
+        <div><label>Entrada inicial (€)</label><input id="down" type="number" value="80000" step="1000"></div>
+        <div><label>Interés hipoteca anual (%)</label><input id="rate" type="number" value="3" step="0.1"></div>
+        <div><label>Plazo hipoteca (años)</label><input id="years" type="number" value="30" step="1"></div>
+        <div><label>Inflación anual (%)</label><input id="inflation" type="number" value="5" step="0.1"></div>
+        <div><label>Gastos compra (% sobre precio)</label><input id="buyCostsPct" type="number" value="6.4" step="0.1"></div>
+        <div>
+          <label>Gastos anuales vivienda (€)</label><input id="annualCosts" type="number" value="1500" step="100">
+          <div class="mini">IBI + comunidad + seguro + mantenimiento.</div>
+        </div>
+        <div><label>Crecimiento anual de esos gastos (%)</label><input id="costGrowth" type="number" value="0" step="0.1"></div>
+        <div><label>Comisión venta (% IVA incluido)</label><input id="sellFeePct" type="number" value="3.63" step="0.01"></div>
+        <div><label>Otros gastos de venta (€)</label><input id="otherSellCosts" type="number" value="2000" step="100"></div>
+        <div>
+          <label>Impuesto sobre ganancia (%)</label><input id="capitalGainsTax" type="number" value="21" step="0.5">
+          <div class="mini">Simplificación editable para la simulación.</div>
+        </div>
+        <div><label>Plusvalía municipal estimada (€)</label><input id="plusvalia" type="number" value="3000" step="100"></div>
+        <div><label>Precio venta inicial tabla (€)</label><input id="saleStart" type="number" value="200000" step="10000"></div>
+        <div><label>Precio venta final tabla (€)</label><input id="saleEnd" type="number" value="1500000" step="10000"></div>
+        <div class="full"><label>Incremento entre filas (€)</label><input id="saleStep" type="number" value="100000" step="10000"></div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="card">
+        <div class="stats">
+          <div class="stat"><div class="k">Hipoteca</div><div class="v" id="loanOut">—</div></div>
+          <div class="stat"><div class="k">Cuota mensual</div><div class="v" id="paymentOut">—</div></div>
+          <div class="stat"><div class="k">Intereses totales</div><div class="v" id="interestOut">—</div></div>
+          <div class="stat"><div class="k">Factor inflación</div><div class="v" id="inflFactorOut">—</div></div>
+        </div>
+
+        <h2>Tabla comparativa</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Precio venta futuro</th>
+                <th>Equivalente en € de hoy</th>
+                <th>Resultado nominal</th>
+                <th>Resultado real*</th>
+                <th>Valoración</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <p class="mini">* Todos los flujos se pasan a euros de hoy, descontando la inflación según el momento en que ocurren.</p>
+      </section>
+
+      <section class="card section">
+        <h2>Cómo se calcula</h2>
+        <div class="formula">
+          <p><strong>1. Hipoteca:</strong> <code>capital financiado = precio de compra − entrada</code>.</p>
+          <p><strong>2. Cuota:</strong> fórmula estándar de amortización francesa con tipo fijo y pagos mensuales.</p>
+          <p><strong>3. Gastos de compra:</strong> porcentaje editable aplicado al precio de adquisición.</p>
+          <p><strong>4. Gastos durante la propiedad:</strong> IBI, comunidad, seguro y mantenimiento, con crecimiento anual opcional.</p>
+          <p><strong>5. Venta:</strong> se descuentan comisión, otros gastos, plusvalía y una estimación simplificada del impuesto sobre la ganancia.</p>
+          <p><strong>6. Inflación:</strong> <code>valor real = valor futuro / (1 + inflación)^años</code>.</p>
+        </div>
+        <div class="note">
+          El punto de equilibrio real no se obtiene simplemente multiplicando el precio de compra por la inflación. La entrada, las cuotas,
+          los intereses y los gastos ocurren en momentos distintos, por lo que cada flujo se descuenta por separado.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <p class="footer">
+    Herramienta educativa. La fiscalidad inmobiliaria real puede variar según comunidad autónoma, municipio, vivienda habitual, bonificaciones,
+    fecha de compra/venta y normativa vigente. Los campos fiscales son editables para adaptar el ejercicio.
+  </p>
+</div>
+
+<script>
+const ids=["price","down","rate","years","inflation","buyCostsPct","annualCosts","costGrowth","sellFeePct","otherSellCosts","capitalGainsTax","plusvalia","saleStart","saleEnd","saleStep"];
+ids.forEach(id=>document.getElementById(id).addEventListener("input",recalc));
+const eur=n=>new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n);
+
+function pmt(principal,annualRate,years){
+  const n=years*12, r=annualRate/100/12;
+  if(principal<=0) return 0;
+  if(r===0) return principal/n;
+  return principal*r/(1-Math.pow(1+r,-n));
+}
+function classify(realProfit,base){
+  const pct=realProfit/Math.max(base,1);
+  if(Math.abs(pct)<=0.02) return ["⚪","Equilibrio","b-white"];
+  if(pct>0.30) return ["🟢","Ganancia muy elevada","b-green"];
+  if(pct>0.15) return ["🟢","Ganancia elevada","b-green"];
+  if(pct>0.05) return ["🟢","Ganancia clara","b-green"];
+  if(pct>0.02) return ["🟢","Ganancia ligera","b-green"];
+  if(pct<-0.40) return ["🔴","Pérdida extrema","b-red"];
+  if(pct<-0.25) return ["🔴","Pérdida muy elevada","b-red"];
+  if(pct<-0.10) return ["🔴","Pérdida clara","b-red"];
+  if(pct<-0.02) return ["🟠","Pérdida moderada","b-orange"];
+  return ["🟡","Cerca del equilibrio","b-yellow"];
+}
+function recalc(){
+  const v=id=>Number(document.getElementById(id).value)||0;
+  const price=v("price"),down=v("down"),rate=v("rate"),years=Math.max(1,v("years"));
+  const inflation=v("inflation")/100,buyCostsPct=v("buyCostsPct")/100;
+  const annualCosts=v("annualCosts"),costGrowth=v("costGrowth")/100;
+  const sellFeePct=v("sellFeePct")/100,otherSellCosts=v("otherSellCosts");
+  const capitalGainsTax=v("capitalGainsTax")/100,plusvalia=v("plusvalia");
+  const start=v("saleStart"),end=v("saleEnd"),step=Math.max(1,v("saleStep"));
+
+  const loan=Math.max(0,price-down),payment=pmt(loan,rate,years);
+  const totalMortgage=payment*years*12,totalInterest=Math.max(0,totalMortgage-loan);
+  const buyCosts=price*buyCostsPct,inflFactor=Math.pow(1+inflation,years);
+
+  document.getElementById("loanOut").textContent=eur(loan);
+  document.getElementById("paymentOut").textContent=eur(payment);
+  document.getElementById("interestOut").textContent=eur(totalInterest);
+  document.getElementById("inflFactorOut").textContent="×"+inflFactor.toFixed(2);
+
+  let realOutflows=down+buyCosts,nominalOutflows=down+buyCosts;
+  for(let m=1;m<=years*12;m++){
+    const t=m/12;
+    nominalOutflows+=payment;
+    realOutflows+=payment/Math.pow(1+inflation,t);
+  }
+  for(let y=1;y<=years;y++){
+    const c=annualCosts*Math.pow(1+costGrowth,y-1);
+    nominalOutflows+=c;
+    realOutflows+=c/Math.pow(1+inflation,y);
+  }
+
+  const tbody=document.getElementById("tbody"); tbody.innerHTML="";
+  for(let sale=start;sale<=end+0.001;sale+=step){
+    const saleFee=sale*sellFeePct;
+    const acquisitionBasis=price+buyCosts;
+    const netBeforeTax=sale-saleFee-otherSellCosts-plusvalia;
+    const taxableGain=Math.max(0,netBeforeTax-acquisitionBasis);
+    const gainTax=taxableGain*capitalGainsTax;
+    const netSale=netBeforeTax-gainTax;
+
+    const nominalProfit=netSale-nominalOutflows;
+    const realSale=netSale/inflFactor;
+    const realProfit=realSale-realOutflows;
+    const [dot,label,cls]=classify(realProfit,realOutflows);
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><strong>${eur(sale)}</strong></td>
+      <td>${eur(sale/inflFactor)}</td>
+      <td>${eur(nominalProfit)}</td>
+      <td><strong>${eur(realProfit)}</strong></td>
+      <td><span class="badge ${cls}">${dot} ${label}</span></td>`;
+    tbody.appendChild(tr);
+  }
+}
+recalc();
+</script>
+</body>
+</html>
