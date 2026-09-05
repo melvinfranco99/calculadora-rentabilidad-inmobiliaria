@@ -23,7 +23,7 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
 input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:var(--text);font-size:15px}
 input:focus{outline:2px solid rgba(56,189,248,.35);border-color:var(--accent)}
 .mini{font-size:12px;color:#64748b;margin-top:5px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
 .stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
 .stat .k{font-size:12px;color:var(--muted)}
 .stat .v{font-size:23px;font-weight:700;margin-top:4px}
@@ -39,6 +39,8 @@ tr:last-child td{border-bottom:none}
 .b-yellow{background:rgba(234,179,8,.13);color:#fef08a}
 .b-green{background:rgba(34,197,94,.13);color:#bbf7d0}
 .b-white{background:rgba(226,232,240,.10);color:#e2e8f0}
+tr.breakeven-row{background:rgba(56,189,248,.08)}
+.tag-eq{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);margin-left:8px;white-space:nowrap}
 .formula{line-height:1.7;color:#cbd5e1}
 .formula code{background:#0f172a;border:1px solid var(--line);padding:2px 7px;border-radius:7px;color:#bae6fd}
 .note{background:#0f172a;border-left:4px solid var(--accent);padding:14px 16px;border-radius:10px;color:#cbd5e1;line-height:1.6}
@@ -91,6 +93,8 @@ tr:last-child td{border-bottom:none}
           <div class="stat"><div class="k">Cuota mensual</div><div class="v" id="paymentOut">—</div></div>
           <div class="stat"><div class="k">Intereses totales</div><div class="v" id="interestOut">—</div></div>
           <div class="stat"><div class="k">Factor inflación</div><div class="v" id="inflFactorOut">—</div></div>
+          <div class="stat"><div class="k">Precio equilibrio (nominal)</div><div class="v" id="breakEvenNominalOut">—</div></div>
+          <div class="stat"><div class="k">Precio equilibrio (real)</div><div class="v" id="breakEvenRealOut">—</div></div>
         </div>
 
         <h2>Tabla comparativa</h2>
@@ -146,6 +150,16 @@ function pmt(principal,annualRate,years){
   if(r===0) return principal/n;
   return principal*r/(1-Math.pow(1+r,-n));
 }
+function findBreakEven(fn){
+  let lo=0,hi=1e7,fLo=fn(lo),fHi=fn(hi),guard=0;
+  while(fHi<0 && guard<12){ hi*=10; fHi=fn(hi); guard++; }
+  if(fLo>0 || fHi<0) return null;
+  for(let i=0;i<80;i++){
+    const mid=(lo+hi)/2;
+    if(fn(mid)<0) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
 function classify(realProfit,base){
   const pct=realProfit/Math.max(base,1);
   if(Math.abs(pct)<=0.02) return ["⚪","Equilibrio","b-white"];
@@ -189,28 +203,46 @@ function recalc(){
     realOutflows+=c/Math.pow(1+inflation,y);
   }
 
-  const tbody=document.getElementById("tbody"); tbody.innerHTML="";
-  for(let sale=start;sale<=end+0.001;sale+=step){
+  const netSaleFor=sale=>{
     const saleFee=sale*sellFeePct;
     const acquisitionBasis=price+buyCosts;
     const netBeforeTax=sale-saleFee-otherSellCosts-plusvalia;
     const taxableGain=Math.max(0,netBeforeTax-acquisitionBasis);
     const gainTax=taxableGain*capitalGainsTax;
-    const netSale=netBeforeTax-gainTax;
+    return netBeforeTax-gainTax;
+  };
+  const nominalProfitFor=sale=>netSaleFor(sale)-nominalOutflows;
+  const realProfitFor=sale=>netSaleFor(sale)/inflFactor-realOutflows;
 
+  const breakEvenNominal=findBreakEven(nominalProfitFor);
+  const breakEvenReal=findBreakEven(realProfitFor);
+  document.getElementById("breakEvenNominalOut").textContent=breakEvenNominal!=null?eur(breakEvenNominal):"—";
+  document.getElementById("breakEvenRealOut").textContent=breakEvenReal!=null?eur(breakEvenReal):"—";
+
+  const rows=[];
+  for(let sale=start;sale<=end+0.001;sale+=step) rows.push({sale,tag:null});
+  if(breakEvenNominal!=null) rows.push({sale:breakEvenNominal,tag:"nominal"});
+  if(breakEvenReal!=null) rows.push({sale:breakEvenReal,tag:"real"});
+  rows.sort((a,b)=>a.sale-b.sale);
+
+  const tbody=document.getElementById("tbody"); tbody.innerHTML="";
+  rows.forEach(row=>{
+    const sale=row.sale;
+    const netSale=netSaleFor(sale);
     const nominalProfit=netSale-nominalOutflows;
-    const realSale=netSale/inflFactor;
-    const realProfit=realSale-realOutflows;
+    const realProfit=netSale/inflFactor-realOutflows;
     const [dot,label,cls]=classify(realProfit,realOutflows);
+    const tagHtml=row.tag?`<span class="tag-eq">★ equilibrio ${row.tag==="real"?"real":"nominal"}</span>`:"";
 
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td><strong>${eur(sale)}</strong></td>
+    if(row.tag) tr.classList.add("breakeven-row");
+    tr.innerHTML=`<td><strong>${eur(sale)}</strong>${tagHtml}</td>
       <td>${eur(sale/inflFactor)}</td>
       <td>${eur(nominalProfit)}</td>
       <td><strong>${eur(realProfit)}</strong></td>
       <td><span class="badge ${cls}">${dot} ${label}</span></td>`;
     tbody.appendChild(tr);
-  }
+  });
 }
 recalc();
 </script>
